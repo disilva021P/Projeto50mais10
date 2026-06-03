@@ -1,0 +1,105 @@
+package ipcaProjeto50.Grupo62026.SiteEntArtes.service;
+
+import ipcaProjeto50.Grupo62026.SiteEntArtes.Helper.IdHasher;
+import ipcaProjeto50.Grupo62026.SiteEntArtes.dto.ProfessoreDto;
+import ipcaProjeto50.Grupo62026.SiteEntArtes.dto.UtilizadoreResumoDto;
+import ipcaProjeto50.Grupo62026.SiteEntArtes.entity.Modalidade;
+import ipcaProjeto50.Grupo62026.SiteEntArtes.entity.ProfessorModalidade;
+import ipcaProjeto50.Grupo62026.SiteEntArtes.entity.ProfessorModalidadeId;
+import ipcaProjeto50.Grupo62026.SiteEntArtes.entity.Professore;
+import ipcaProjeto50.Grupo62026.SiteEntArtes.repository.AulaProfessoreRepository;
+import ipcaProjeto50.Grupo62026.SiteEntArtes.repository.ModalidadeRepository;
+import ipcaProjeto50.Grupo62026.SiteEntArtes.repository.ProfessorModalidadeRepository;
+import ipcaProjeto50.Grupo62026.SiteEntArtes.repository.ProfessoreRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Repository;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@RequiredArgsConstructor
+@Service
+public class ProfessorService {
+    private final IdHasher idHasher;
+    private final ProfessoreRepository professoreRepository;
+    private final ProfessorModalidadeRepository professorModalidadeRepository;
+    private final ModalidadeRepository modalidadeRepository;
+    private final AulaProfessoreRepository aulaProfessoreRepository;
+
+    public Professore findById(Integer id) throws Exception {
+        return professoreRepository.findById(id).orElseThrow(()-> new Exception("Professor não encontrado"));
+    }
+    public Professore findById(String id) throws Exception {
+        return professoreRepository.findById(idHasher.decode(id)).orElseThrow(()-> new Exception("Professor não encontrado"));
+    }
+    public List<ProfessoreDto> findAll(){
+        return professoreRepository.findAll().stream().map(this::convertToDto).toList();
+    }
+    public List<UtilizadoreResumoDto> findAllUtilizador(){
+        return professoreRepository.findAll().stream().map(p -> new UtilizadoreResumoDto(idHasher.encode(p.getId()),p.getNome())).toList();
+    }
+    // No ProfessorService.java
+
+    public Page<ProfessoreDto> findAllPageable(Pageable pageable) {
+        return professoreRepository.findAll(pageable)
+                .map(this::convertToDto);
+    }
+
+    public Page<ProfessoreDto> findByModalidade(String modalidadeId, Pageable pageable) {
+        Integer idReal = idHasher.decode(modalidadeId);
+
+        // 1. Obtemos a página de ProfessorModalidade do repositório
+        Page<ProfessorModalidade> pmPage = professorModalidadeRepository.findByModalidadeIdCustom(idReal, pageable);
+
+        // 2. Usamos o .map() do próprio Page para transformar o conteúdo
+        // Isso mantém o total de elementos, páginas, etc., mas troca o conteúdo para DTO do Professor
+        return pmPage.map(pm -> convertToDto(pm.getProfessor()));
+    }
+    public ProfessoreDto convertToDto(Professore p){
+        return p == null ? null : new ProfessoreDto(
+                new UtilizadoreResumoDto(idHasher.encode(p.getId()),p.getNome() ),
+                p.getValorHora(),
+                p.getProfessorExterno()
+        );
+    }
+    public ProfessoreDto adicionarModalidade(String professorId, String modalidadeId) throws Exception {
+        Professore professor = professoreRepository.findById(idHasher.decode(professorId))
+                .orElseThrow(() -> new Exception("Professor não encontrado"));
+
+        Modalidade modalidade = modalidadeRepository.findById(idHasher.decode(modalidadeId))
+                .orElseThrow(() -> new Exception("Modalidade não encontrada"));
+
+        ProfessorModalidadeId id = new ProfessorModalidadeId(professor.getId(), modalidade.getId());
+
+        if (professorModalidadeRepository.existsById(id)) {
+            throw new Exception("Modalidade já associada a este professor");
+        }
+
+        ProfessorModalidade pm = new ProfessorModalidade(id, professor, modalidade);
+        professorModalidadeRepository.save(pm);
+
+        return convertToDto(professor);
+    }
+
+    public void removerModalidade(String professorId, String modalidadeId) throws Exception {
+        Professore professor = professoreRepository.findById(idHasher.decode(professorId))
+                .orElseThrow(() -> new Exception("Professor não encontrado"));
+
+        Modalidade modalidade = modalidadeRepository.findById(idHasher.decode(modalidadeId))
+                .orElseThrow(() -> new Exception("Modalidade não encontrada"));
+
+        ProfessorModalidadeId id = new ProfessorModalidadeId(professor.getId(), modalidade.getId());
+
+        if (!professorModalidadeRepository.existsById(id)) {
+            throw new Exception("Associação não encontrada");
+        }
+
+        professorModalidadeRepository.deleteById(id);
+    }
+
+    public List<String> findAllbyAula(String id) {
+        return aulaProfessoreRepository.findAllByAulaId(idHasher.decode(id)).stream().map(x -> x.getProfessor().getNome()).toList();
+    }
+}

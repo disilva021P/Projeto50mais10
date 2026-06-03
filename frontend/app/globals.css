@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+
+  /* As tuas variáveis personalizadas */
+  --background: #F2EDE4;
+  --foreground: #2C1F14;
+  --accent-gold: #D4B288;
+  --accent-muted: #A08560;
+  --panel-dark: #2C1F14;
+  --border-warm: #C9B99A;
+}
+
+@theme {
+  /* Configuração correta de variáveis no Tailwind v4 */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-panel-dark: var(--panel-dark);
+  --color-accent-gold: var(--accent-gold);
+  --color-accent-muted: var(--accent-muted);
+  --color-border-warm: var(--border-warm);
+
+  --panel-light: #F2EDE4;
+  --border-color: var(--border-warm);
+
+  /* Mapeamento das fontes */
+  --font-sans: var(--font-lato), sans-serif;
+  --font-serif: var(--font-playfair), serif;
+  --font-mono: var(--font-geist-mono), monospace;
+}
+
+/* Estilos Globais */
+html, body {
+  background-color: var(--background) !important;
+  color: var(--foreground);
+}
